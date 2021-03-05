@@ -29,7 +29,7 @@
         private void InitializeComponent()
         {
             this.components = new System.ComponentModel.Container();
-            this.ipTextBox = new System.Windows.Forms.TextBox();
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Main));
             this.connectButton = new System.Windows.Forms.Button();
             this.setupButton = new System.Windows.Forms.Button();
             this.userComboBox = new System.Windows.Forms.ComboBox();
@@ -38,10 +38,12 @@
             this.mountButton = new System.Windows.Forms.Button();
             this.unmountButton = new System.Windows.Forms.Button();
             this.connectionGroupBox = new System.Windows.Forms.GroupBox();
+            this.fwCombo = new System.Windows.Forms.ComboBox();
             this.getGamesButton = new System.Windows.Forms.Button();
             this.gamesComboBox = new System.Windows.Forms.ComboBox();
             this.payloadButton = new System.Windows.Forms.Button();
             this.ipLabel = new System.Windows.Forms.Label();
+            this.ipTextBox = new System.Windows.Forms.TextBox();
             this.createGroupBox = new System.Windows.Forms.GroupBox();
             this.sizeLabel = new System.Windows.Forms.Label();
             this.sizeTrackBar = new System.Windows.Forms.TrackBar();
@@ -67,16 +69,9 @@
             this.infoGroupBox.SuspendLayout();
             this.SuspendLayout();
             // 
-            // ipTextBox
-            // 
-            this.ipTextBox.Location = new System.Drawing.Point(70, 19);
-            this.ipTextBox.Name = "ipTextBox";
-            this.ipTextBox.Size = new System.Drawing.Size(117, 20);
-            this.ipTextBox.TabIndex = 0;
-            // 
             // connectButton
             // 
-            this.connectButton.Location = new System.Drawing.Point(284, 19);
+            this.connectButton.Location = new System.Drawing.Point(370, 18);
             this.connectButton.Name = "connectButton";
             this.connectButton.Size = new System.Drawing.Size(90, 20);
             this.connectButton.TabIndex = 2;
@@ -100,7 +95,7 @@
             this.userComboBox.FormattingEnabled = true;
             this.userComboBox.Location = new System.Drawing.Point(193, 45);
             this.userComboBox.Name = "userComboBox";
-            this.userComboBox.Size = new System.Drawing.Size(181, 21);
+            this.userComboBox.Size = new System.Drawing.Size(267, 21);
             this.userComboBox.TabIndex = 4;
             this.userComboBox.SelectedIndexChanged += new System.EventHandler(this.userComboBox_SelectedIndexChanged);
             // 
@@ -110,7 +105,7 @@
             this.dirsComboBox.FormattingEnabled = true;
             this.dirsComboBox.Location = new System.Drawing.Point(193, 19);
             this.dirsComboBox.Name = "dirsComboBox";
-            this.dirsComboBox.Size = new System.Drawing.Size(180, 21);
+            this.dirsComboBox.Size = new System.Drawing.Size(267, 21);
             this.dirsComboBox.TabIndex = 1;
             this.dirsComboBox.SelectedIndexChanged += new System.EventHandler(this.dirsComboBox_SelectedIndexChanged);
             // 
@@ -138,7 +133,7 @@
             // 
             this.unmountButton.Location = new System.Drawing.Point(192, 48);
             this.unmountButton.Name = "unmountButton";
-            this.unmountButton.Size = new System.Drawing.Size(181, 23);
+            this.unmountButton.Size = new System.Drawing.Size(268, 23);
             this.unmountButton.TabIndex = 3;
             this.unmountButton.Text = "Unmount";
             this.unmountButton.UseVisualStyleBackColor = true;
@@ -146,6 +141,7 @@
             // 
             // connectionGroupBox
             // 
+            this.connectionGroupBox.Controls.Add(this.fwCombo);
             this.connectionGroupBox.Controls.Add(this.getGamesButton);
             this.connectionGroupBox.Controls.Add(this.gamesComboBox);
             this.connectionGroupBox.Controls.Add(this.payloadButton);
@@ -156,10 +152,20 @@
             this.connectionGroupBox.Controls.Add(this.userComboBox);
             this.connectionGroupBox.Location = new System.Drawing.Point(7, 12);
             this.connectionGroupBox.Name = "connectionGroupBox";
-            this.connectionGroupBox.Size = new System.Drawing.Size(379, 105);
+            this.connectionGroupBox.Size = new System.Drawing.Size(466, 105);
             this.connectionGroupBox.TabIndex = 0;
             this.connectionGroupBox.TabStop = false;
             this.connectionGroupBox.Text = "Connection";
+            // 
+            // fwCombo
+            // 
+            this.fwCombo.DataBindings.Add(new System.Windows.Forms.Binding("Text", global::PS4Saves.Properties.Settings.Default, "defaultPayload", true, System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged));
+            this.fwCombo.FormattingEnabled = true;
+            this.fwCombo.Location = new System.Drawing.Point(192, 18);
+            this.fwCombo.Name = "fwCombo";
+            this.fwCombo.Size = new System.Drawing.Size(77, 21);
+            this.fwCombo.TabIndex = 7;
+            this.fwCombo.Text = global::PS4Saves.Properties.Settings.Default.defaultPayload;
             // 
             // getGamesButton
             // 
@@ -177,15 +183,15 @@
             this.gamesComboBox.FormattingEnabled = true;
             this.gamesComboBox.Location = new System.Drawing.Point(192, 72);
             this.gamesComboBox.Name = "gamesComboBox";
-            this.gamesComboBox.Size = new System.Drawing.Size(181, 21);
+            this.gamesComboBox.Size = new System.Drawing.Size(268, 21);
             this.gamesComboBox.TabIndex = 6;
             this.gamesComboBox.SelectedIndexChanged += new System.EventHandler(this.gamesComboBox_SelectedIndexChanged);
             // 
             // payloadButton
             // 
-            this.payloadButton.Location = new System.Drawing.Point(192, 19);
+            this.payloadButton.Location = new System.Drawing.Point(275, 18);
             this.payloadButton.Name = "payloadButton";
-            this.payloadButton.Size = new System.Drawing.Size(90, 20);
+            this.payloadButton.Size = new System.Drawing.Size(89, 20);
             this.payloadButton.TabIndex = 1;
             this.payloadButton.Text = "Send Payload";
             this.payloadButton.UseVisualStyleBackColor = true;
@@ -200,6 +206,15 @@
             this.ipLabel.TabIndex = 6;
             this.ipLabel.Text = "ip address:";
             // 
+            // ipTextBox
+            // 
+            this.ipTextBox.DataBindings.Add(new System.Windows.Forms.Binding("Text", global::PS4Saves.Properties.Settings.Default, "ip", true, System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged));
+            this.ipTextBox.Location = new System.Drawing.Point(70, 19);
+            this.ipTextBox.Name = "ipTextBox";
+            this.ipTextBox.Size = new System.Drawing.Size(117, 20);
+            this.ipTextBox.TabIndex = 0;
+            this.ipTextBox.Text = global::PS4Saves.Properties.Settings.Default.ip;
+            // 
             // createGroupBox
             // 
             this.createGroupBox.Controls.Add(this.sizeLabel);
@@ -209,7 +224,7 @@
             this.createGroupBox.Controls.Add(this.createButton);
             this.createGroupBox.Location = new System.Drawing.Point(7, 210);
             this.createGroupBox.Name = "createGroupBox";
-            this.createGroupBox.Size = new System.Drawing.Size(379, 129);
+            this.createGroupBox.Size = new System.Drawing.Size(466, 129);
             this.createGroupBox.TabIndex = 2;
             this.createGroupBox.TabStop = false;
             this.createGroupBox.Text = "Create New Saves";
@@ -229,7 +244,7 @@
             this.sizeTrackBar.Maximum = 32768;
             this.sizeTrackBar.Minimum = 96;
             this.sizeTrackBar.Name = "sizeTrackBar";
-            this.sizeTrackBar.Size = new System.Drawing.Size(257, 45);
+            this.sizeTrackBar.Size = new System.Drawing.Size(343, 45);
             this.sizeTrackBar.TabIndex = 1;
             this.sizeTrackBar.Value = 96;
             this.sizeTrackBar.Scroll += new System.EventHandler(this.sizeTrackBar_Scroll);
@@ -248,14 +263,14 @@
             this.nameTextBox.Location = new System.Drawing.Point(117, 22);
             this.nameTextBox.MaxLength = 31;
             this.nameTextBox.Name = "nameTextBox";
-            this.nameTextBox.Size = new System.Drawing.Size(256, 20);
+            this.nameTextBox.Size = new System.Drawing.Size(343, 20);
             this.nameTextBox.TabIndex = 0;
             // 
             // createButton
             // 
-            this.createButton.Location = new System.Drawing.Point(5, 99);
+            this.createButton.Location = new System.Drawing.Point(7, 94);
             this.createButton.Name = "createButton";
-            this.createButton.Size = new System.Drawing.Size(367, 23);
+            this.createButton.Size = new System.Drawing.Size(455, 23);
             this.createButton.TabIndex = 2;
             this.createButton.Text = "Create Save";
             this.createButton.UseVisualStyleBackColor = true;
@@ -269,7 +284,7 @@
             this.mountGroupBox.Controls.Add(this.unmountButton);
             this.mountGroupBox.Location = new System.Drawing.Point(7, 123);
             this.mountGroupBox.Name = "mountGroupBox";
-            this.mountGroupBox.Size = new System.Drawing.Size(379, 81);
+            this.mountGroupBox.Size = new System.Drawing.Size(466, 81);
             this.mountGroupBox.TabIndex = 1;
             this.mountGroupBox.TabStop = false;
             this.mountGroupBox.Text = "Mount Existing Saves";
@@ -284,7 +299,7 @@
             this.infoGroupBox.Controls.Add(this.subtitleLabel);
             this.infoGroupBox.Controls.Add(this.titleTextBox);
             this.infoGroupBox.Controls.Add(this.titleLabel);
-            this.infoGroupBox.Location = new System.Drawing.Point(392, 12);
+            this.infoGroupBox.Location = new System.Drawing.Point(479, 12);
             this.infoGroupBox.Name = "infoGroupBox";
             this.infoGroupBox.Size = new System.Drawing.Size(396, 327);
             this.infoGroupBox.TabIndex = 3;
@@ -365,7 +380,7 @@
             // statusLabel
             // 
             this.statusLabel.AutoSize = true;
-            this.statusLabel.Location = new System.Drawing.Point(4, 342);
+            this.statusLabel.Location = new System.Drawing.Point(4, 346);
             this.statusLabel.Name = "statusLabel";
             this.statusLabel.Size = new System.Drawing.Size(40, 13);
             this.statusLabel.TabIndex = 13;
@@ -375,14 +390,17 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(797, 362);
+            this.ClientSize = new System.Drawing.Size(886, 368);
             this.Controls.Add(this.statusLabel);
             this.Controls.Add(this.infoGroupBox);
             this.Controls.Add(this.mountGroupBox);
             this.Controls.Add(this.createGroupBox);
             this.Controls.Add(this.connectionGroupBox);
+            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
+            this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
+            this.MaximizeBox = false;
             this.Name = "Main";
-            this.Text = "Playstation 4 Save Mounter 1.5 [ps4debug]";
+            this.Text = "Playstation 4 Save Mounter 1.8";
             this.connectionGroupBox.ResumeLayout(false);
             this.connectionGroupBox.PerformLayout();
             this.createGroupBox.ResumeLayout(false);
@@ -429,6 +447,7 @@
         private System.Windows.Forms.Button payloadButton;
         private System.Windows.Forms.Button getGamesButton;
         private System.Windows.Forms.ComboBox gamesComboBox;
+        private System.Windows.Forms.ComboBox fwCombo;
     }
 }
 

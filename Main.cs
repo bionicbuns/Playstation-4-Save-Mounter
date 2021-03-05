@@ -30,16 +30,31 @@ namespace PS4Saves
         public Main()
         {
             InitializeComponent();
+            Application.ApplicationExit += new EventHandler(this.OnApplicationExit);
+            if (Directory.Exists(Directory.GetCurrentDirectory() + @"\payloads"))
+            {
+                string[] dirs = Directory.GetDirectories(Directory.GetCurrentDirectory() + @"\payloads", "*", SearchOption.TopDirectoryOnly);
+                foreach (string dir in dirs)
+                {
+                    string fwDir = Path.GetFileName(dir);
+                    fwCombo.Items.Add(fwDir);
+                }
+            }
+            else
+            {
+                SetStatus("Missing payloads.");
+            }            
             string[] args = Environment.GetCommandLineArgs();
             if (args.Length == 2 && args[1] == "-log")
             {
                 log = true;
             }
-
-            if (File.Exists("ip"))
+            ipTextBox.Text = Properties.Settings.Default.ip;
+            if (Properties.Settings.Default.defaultPayload.ToString() != "")
             {
-                ipTextBox.Text = File.ReadAllText("ip");
-            }
+                fwCombo.SelectedIndex = fwCombo.FindString(Properties.Settings.Default.defaultPayload);
+            }            
+            SetStatus("Waiting - Send Payload or just Connect if PS4Debug is already loaded on your PS4.");
         }
         public static string FormatSize(double size)
         {
@@ -72,21 +87,8 @@ namespace PS4Saves
         {
             if(log)
             {
-
-                msg = $"|{msg}|";
-                var a = msg.Length / 2;
-                for (var i = 0; i < 48 - a; i++)
-                {
-                    msg = msg.Insert(0, " ");
-                }
-
-                for (var i = msg.Length; i < 96; i++)
-                {
-                    msg += " ";
-                }
-
                 var dateAndTime = DateTime.Now;
-                var logStr = $"|{dateAndTime:MM/dd/yyyy} {dateAndTime:hh:mm:ss tt}| |{msg}|";
+                var logStr = $"|{dateAndTime:MM/dd/yyyy} {dateAndTime:hh:mm:ss tt}|{msg}|";
 
                 if (File.Exists(@"log.txt"))
                 {
@@ -106,6 +108,7 @@ namespace PS4Saves
         }
         private void connectButton_Click(object sender, EventArgs e)
         {
+            SetStatus("Connecting...");
             try
             {
                 if (!checkIP(ipTextBox.Text))
@@ -119,30 +122,24 @@ namespace PS4Saves
                 {
                     throw new Exception();
                 }
-                SetStatus("Connected");
-                if (!File.Exists("ip"))
-                {
-                    File.WriteAllText("ip", ipTextBox.Text);
-                }
-                else
-                {
-                    using (var sw = File.CreateText(@"log.txt"))
-                    {
-                        sw.Write(ipTextBox.Text);
-                    }
-                }
+                SetStatus("Connected - Make sure the correct FW version is selected in payload dropdown and press Setup.");
+                Properties.Settings.Default.ip = ipTextBox.Text;
+                Properties.Settings.Default.Save();
             }
             catch
             {
-                SetStatus("Failed To Connect");
+                SetStatus("Failed to connect. Check IP and make sure PS4Debug payload is already loaded on the PS4.");
             }
         }
 
         private void setupButton_Click(object sender, EventArgs e)
         {
+            statusLabel.Text = "Setting up...";
+            string[] offsetsNew;
+
             if (!ps4.IsConnected)
             {
-                SetStatus("Not connected to ps4");
+                SetStatus("Not connected to PS4.");
                 return;
             }
             var pl = ps4.GetProcessList();
@@ -187,52 +184,94 @@ namespace PS4Saves
             libSceLibcInternalBase = (ulong)tmp;
             stub = pm.FindEntry("(NoName)clienthandler") == null ? ps4.InstallRPC(pid) : pm.FindEntry("(NoName)clienthandler").start;
 
-            
+            string selectedFw = fwCombo.Text.ToString();
+            if (selectedFw == "")
+            {
+                SetStatus("Please select your FW from dropdown menu.");
+                return;
+            }
 
-            var ret = ps4.Call(pid, stub, libSceSaveDataBase + offsets.sceSaveDataInitialize3);
-            WriteLog($"sceSaveDataInitialize3 ret = 0x{ret:X}");
-            
-           
-            //PATCHES
-            //SAVEDATA LIBRARY PATCHES
-            ps4.WriteMemory(pid, libSceSaveDataBase + 0x32998, (byte)0x00); // 'sce_' patch
-            ps4.WriteMemory(pid, libSceSaveDataBase + 0x31699, (byte)0x00); // 'sce_sdmemory' patch
-            ps4.WriteMemory(pid, libSceSaveDataBase + 0x01119, (byte)0x30); // '_' patch
+            var offsetspath = Directory.GetCurrentDirectory() + @"\payloads\" + selectedFw + @"\offsets";
+            if (!File.Exists(offsetspath))
+            {
+                MessageBox.Show("offsets missing", "Error");
+                return;
+            }
+            else
+            {
+                offsetsNew = File.ReadAllText(offsetspath).Split(',');
+                if (offsetsNew.Length != 24)
+                {
+                    MessageBox.Show("offsets incorrect", "Error");
+                    return;
+                }
+                else
+                {
+                    offsets.sceUserServiceGetInitialUser = Convert.ToUInt32(offsetsNew[17], 16);
+                    offsets.sceUserServiceGetLoginUserIdList = Convert.ToUInt32(offsetsNew[18], 16);
+                    offsets.sceUserServiceGetUserName = Convert.ToUInt32(offsetsNew[19], 16);
+                    offsets.sceSaveDataMount = Convert.ToUInt32(offsetsNew[20], 16);
+                    offsets.sceSaveDataUmount = Convert.ToUInt32(offsetsNew[21], 16);
+                    offsets.sceSaveDataDirNameSearch = Convert.ToUInt32(offsetsNew[22], 16);
+                    offsets.sceSaveDataInitialize3 = Convert.ToUInt32(offsetsNew[23], 16);
 
-            var l = ps4.GetProcessList();
-            var s = l.FindProcess("SceShellCore");
-            var m = ps4.GetProcessMaps(s.pid);
-            var ex = m.FindEntry("executable");
-            
-            //SHELLCORE PATCHES
-            ps4.WriteMemory(s.pid, ex.start + 0xD42843, (byte)0x00); // 'sce_sdmemory' patch
-            ps4.WriteMemory(s.pid, ex.start + 0x7E4DC0, new byte[]{0x48, 0x31, 0xC0, 0xC3}); //verify keystone patch
-            ps4.WriteMemory(s.pid, ex.start + 0x68BA0, new byte[] {0x31, 0xC0, 0xC3}); //transfer mount permission patch eg mount foreign saves with write permission
-            ps4.WriteMemory(s.pid, ex.start + 0xC54F0, new byte[] { 0x31, 0xC0, 0xC3 });//patch psn check to load saves saves foreign to current account
-            ps4.WriteMemory(s.pid, ex.start + 0x6A349, new byte[] { 0x90, 0x90 }); // ^
-            ps4.WriteMemory(s.pid, ex.start + 0x686AE, new byte[] {0x90, 0x90, 0x90, 0x90, 0x90, 0x90}); // something something patches... 
-            ps4.WriteMemory(s.pid, ex.start + 0x67FCA, new byte[] { 0x90, 0x90, 0x90, 0x90, 0x90, 0x90 }); // don't even remember doing this
-            ps4.WriteMemory(s.pid, ex.start + 0x67798, new byte[] { 0x90, 0x90}); //nevah jump
-            ps4.WriteMemory(s.pid, ex.start + 0x679D5, new byte[] { 0x90, 0xE9 }); //always jump
-            //WRITE CUSTOM FUNCTIONS
-            GetSaveDirectoriesAddr = ps4.AllocateMemory(pid, 0x8000);
-            ps4.WriteMemory(pid, GetSaveDirectoriesAddr, functions.GetSaveDirectories);
-            ps4.WriteMemory(pid, GetSaveDirectoriesAddr + 0x12, executableBase + 0x81E800); //opendir
-            ps4.WriteMemory(pid, GetSaveDirectoriesAddr + 0x20, executableBase + 0x81E810); //readdir
-            ps4.WriteMemory(pid, GetSaveDirectoriesAddr + 0x2E, executableBase + 0x81E7F0);//closedir
-            ps4.WriteMemory(pid, GetSaveDirectoriesAddr + 0x3C, libSceLibcInternalBase + 0x8B1A0); //strcpy
+                    var ret = ps4.Call(pid, stub, libSceSaveDataBase + offsets.sceSaveDataInitialize3);
+                    WriteLog($"sceSaveDataInitialize3 ret = 0x{ret:X}");
+                    //PATCHES
+                    //SAVEDATA LIBRARY PATCHES (libSceSaveData)
+                    ps4.WriteMemory(pid, libSceSaveDataBase + Convert.ToUInt32(offsetsNew[0], 16), (byte)0x00); // 'sce_' patch
+                    ps4.WriteMemory(pid, libSceSaveDataBase + Convert.ToUInt32(offsetsNew[1], 16), (byte)0x00); // 'sce_sdmemory' patch
+                    ps4.WriteMemory(pid, libSceSaveDataBase + Convert.ToUInt32(offsetsNew[2], 16), (byte)0x30); // '_' patch
+                    var l = ps4.GetProcessList();
+                    var s = l.FindProcess("SceShellCore");
+                    var m = ps4.GetProcessMaps(s.pid);
+                    var ex = m.FindEntry("executable");
 
-            GetUsersAddr = GetSaveDirectoriesAddr + (uint)functions.GetSaveDirectories.Length + 0x20;
-            ps4.WriteMemory(pid, GetUsersAddr, functions.GetUsers);
-            ps4.WriteMemory(pid, GetUsersAddr + 0x15, libSceUserServiceBase + offsets.sceUserServiceGetLoginUserIdList);
-            ps4.WriteMemory(pid, GetUsersAddr + 0x23, libSceUserServiceBase + offsets.sceUserServiceGetUserName);
-            ps4.WriteMemory(pid, GetUsersAddr + 0x31, libSceLibcInternalBase + 0x8B1A0); //strcpy
+                    //SHELLCORE PATCHES (SceShellCore)
+                    ps4.WriteMemory(s.pid, ex.start + Convert.ToUInt32(offsetsNew[3], 16), (byte)0x00); // 'sce_sdmemory' patch
+                    ps4.WriteMemory(s.pid, ex.start + Convert.ToUInt32(offsetsNew[4], 16), new byte[] { 0x48, 0x31, 0xC0, 0xC3 }); //verify keystone patch
+                    ps4.WriteMemory(s.pid, ex.start + Convert.ToUInt32(offsetsNew[5], 16), new byte[] { 0x31, 0xC0, 0xC3 }); //transfer mount permission patch eg mount foreign saves with write permission
+                    ps4.WriteMemory(s.pid, ex.start + Convert.ToUInt32(offsetsNew[6], 16), new byte[] { 0x31, 0xC0, 0xC3 });//patch psn check to load saves saves foreign to current account
+                    ps4.WriteMemory(s.pid, ex.start + Convert.ToUInt32(offsetsNew[7], 16), new byte[] { 0x90, 0x90 }); // ^
+                    ps4.WriteMemory(s.pid, ex.start + Convert.ToUInt32(offsetsNew[8], 16), new byte[] { 0x90, 0x90, 0x90, 0x90, 0x90, 0x90 }); // something something patches... 
+                    ps4.WriteMemory(s.pid, ex.start + Convert.ToUInt32(offsetsNew[9], 16), new byte[] { 0x90, 0x90, 0x90, 0x90, 0x90, 0x90 }); // don't even remember doing this
+                    ps4.WriteMemory(s.pid, ex.start + Convert.ToUInt32(offsetsNew[10], 16), new byte[] { 0x90, 0x90 }); //nevah jump
+                    ps4.WriteMemory(s.pid, ex.start + Convert.ToUInt32(offsetsNew[11], 16), new byte[] { 0x90, 0xE9 }); //always jump
+                    //WRITE CUSTOM FUNCTIONS (libSceLibcInternal)
+                    GetSaveDirectoriesAddr = ps4.AllocateMemory(pid, 0x8000);
+                    ps4.WriteMemory(pid, GetSaveDirectoriesAddr, functions.GetSaveDirectories);
+                    if (selectedFw == "5.05")
+                    {
+                        ps4.WriteMemory(pid, GetSaveDirectoriesAddr + 0x12, executableBase + Convert.ToUInt32(offsetsNew[12], 16)); //opendir
+                        ps4.WriteMemory(pid, GetSaveDirectoriesAddr + 0x20, executableBase + Convert.ToUInt32(offsetsNew[13], 16)); //readdir
+                        ps4.WriteMemory(pid, GetSaveDirectoriesAddr + 0x2E, executableBase + Convert.ToUInt32(offsetsNew[14], 16)); //closedir
+                    }
+                    else
+                    {
+                        ps4.WriteMemory(pid, GetSaveDirectoriesAddr + 0x12, libSceLibcInternalBase + Convert.ToUInt32(offsetsNew[12], 16)); //opendir
+                        ps4.WriteMemory(pid, GetSaveDirectoriesAddr + 0x20, libSceLibcInternalBase + Convert.ToUInt32(offsetsNew[13], 16)); //readdir
+                        ps4.WriteMemory(pid, GetSaveDirectoriesAddr + 0x2E, libSceLibcInternalBase + Convert.ToUInt32(offsetsNew[14], 16)); //closedir
+                    }
+                    ps4.WriteMemory(pid, GetSaveDirectoriesAddr + 0x3C, libSceLibcInternalBase + Convert.ToUInt32(offsetsNew[15], 16)); //strcpy
 
+                    GetUsersAddr = GetSaveDirectoriesAddr + (uint)functions.GetSaveDirectories.Length + 0x20;
+                    ps4.WriteMemory(pid, GetUsersAddr, functions.GetUsers);
+                    ps4.WriteMemory(pid, GetUsersAddr + 0x15, libSceUserServiceBase + offsets.sceUserServiceGetLoginUserIdList);
+                    ps4.WriteMemory(pid, GetUsersAddr + 0x23, libSceUserServiceBase + offsets.sceUserServiceGetUserName);
+                    ps4.WriteMemory(pid, GetUsersAddr + 0x31, libSceLibcInternalBase + Convert.ToUInt32(offsetsNew[16], 16)); //strcpy
 
-            var users = GetUsers();
-            userComboBox.DataSource = users;
-
-            SetStatus("Setup Done :)");
+                    var users = GetUsers();
+                    userComboBox.DataSource = users;
+                    if (userComboBox.Items.Count == 0)
+                    {
+                        SetStatus("Setup failed. Make sure you have the correct FW selected in the dropdown menu and try again.");
+                    }
+                    else
+                    {
+                        SetStatus("Setup done. Select user and press 'Get Games' to scan for available games.");
+                    }
+                }
+            }
         }
 
         private void searchButton_Click(object sender, EventArgs e)
@@ -240,17 +279,17 @@ namespace PS4Saves
 
             if (!ps4.IsConnected)
             {
-                SetStatus("Not connected to ps4");
+                SetStatus("Not connected to PS4.");
                 return;
             }
             if (pid == 0)
             {
-                SetStatus("dont forget to click setup");
+                SetStatus("Press 'Setup' first to get PS4 Users.");
                 return;
             }
             if (selectedGame == null)
             {
-                SetStatus("No game selected");
+                SetStatus("No game selected.");
                 return;
             }
             var pm = ps4.GetProcessMaps(pid);
@@ -278,11 +317,11 @@ namespace PS4Saves
             ps4.FreeMemory(pid, dirNameAddr, Marshal.SizeOf(typeof(SceSaveDataDirName)) * 1024 + 0x10 + Marshal.SizeOf(typeof(SceSaveDataParam)) * 1024);
             if (dirsComboBox.Items.Count > 0)
             {
-                SetStatus($"Found {dirsComboBox.Items.Count} Save Directories :D");
+                SetStatus($"Found {dirsComboBox.Items.Count} save directories.");
             }
             else
             {
-                SetStatus("Found 0 Save Directories :(");
+                SetStatus("Found 0 Save Directories.");
             }
         }
 
@@ -290,17 +329,17 @@ namespace PS4Saves
         {
             if (!ps4.IsConnected)
             {
-                SetStatus("Not connected to ps4");
+                SetStatus("Not connected to PS4.");
                 return;
             }
             if (dirsComboBox.Items.Count == 0)
             {
-                SetStatus("No save selected");
+                SetStatus("No save selected.");
                 return;
             }
             if (selectedGame == null)
             {
-                SetStatus("No game selected");
+                SetStatus("No game selected.");
                 return;
             }
             var dirNameAddr = ps4.AllocateMemory(pid, Marshal.SizeOf(typeof(SceSaveDataDirName)) + 0x10 + 0x41);
@@ -333,11 +372,11 @@ namespace PS4Saves
             ps4.FreeMemory(pid, dirNameAddr, Marshal.SizeOf(typeof(SceSaveDataDirName)) + 0x10 + 0x41);
             if (mp != "")
             {
-                SetStatus($"Save Mounted in {mp}");
+                SetStatus($"Save Mounted in {mp}.");
             }
             else
             {
-                SetStatus("Mounting Failed");
+                SetStatus("Mounting failed.");
             }
         }
 
@@ -345,12 +384,12 @@ namespace PS4Saves
         {
             if (!ps4.IsConnected)
             {
-                SetStatus("Not connected to ps4");
+                SetStatus("Not connected to PS4.");
                 return;
             }
             if (mp == "")
             {
-                SetStatus("No save mounted");
+                SetStatus("No save mounted.");
                 return;
             }
             SceSaveDataMountPoint mountPoint = new SceSaveDataMountPoint
@@ -360,29 +399,29 @@ namespace PS4Saves
 
             Unmount(mountPoint);
             mp = null;
-            SetStatus("Save Unmounted");
+            SetStatus("Save Unmounted.");
         }
 
         private void createButton_Click(object sender, EventArgs e)
         {
             if (!ps4.IsConnected)
             {
-                SetStatus("Not connected to ps4");
+                SetStatus("Not connected to PS4.");
                 return;
             }
             if (pid == 0)
             {
-                SetStatus("Don't forget to setup");
+                SetStatus("Press 'Setup' first to get PS4 Users.");
                 return;
             }
             if (nameTextBox.Text == "")
             {
-                SetStatus("No Save Name");
+                SetStatus("No save Name.");
                 return;
             }
             if (selectedGame == null)
             {
-                SetStatus("No game selected");
+                SetStatus("No game selected.");
                 return;
             }
             var pm = ps4.GetProcessMaps(pid);
@@ -421,7 +460,7 @@ namespace PS4Saves
             ps4.FreeMemory(pid, dirNameAddr, Marshal.SizeOf(typeof(SceSaveDataDirName)) + 0x10 + 0x41);
             if (mp != "")
             {
-                SetStatus("Save Created");
+                SetStatus("Save created.");
                 SceSaveDataMountPoint mountPoint = new SceSaveDataMountPoint
                 {
                     data = mp,
@@ -430,7 +469,7 @@ namespace PS4Saves
             }
             else
             {
-                SetStatus("Save Creation Failed");
+                SetStatus("Save creation failed.");
             }
         }
 
@@ -619,30 +658,54 @@ namespace PS4Saves
             {
                 if (!checkIP(ipTextBox.Text))
                 {
-                    SetStatus("Invalid IP");
+                    SetStatus("Invalid IP.");
                     return;
                 }
-
-                var assembly = System.Reflection.Assembly.GetExecutingAssembly();
-                using (var stream = assembly.GetManifestResourceStream("PS4Saves.ps4debug.bin"))
+                if (fwCombo.SelectedIndex == -1)
                 {
-                    var buffer = new byte[stream.Length];
-                    stream.Read(buffer, 0, buffer.Length);
-                    var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-                    IAsyncResult result = socket.BeginConnect(new IPEndPoint(IPAddress.Parse(ipTextBox.Text), 9020), null, null);
-                    var connected = result.AsyncWaitHandle.WaitOne(3000);
-                    if (connected)
+                    SetStatus("No payload selected.");
+                    return;
+                }
+                else
+                {
+                    SetStatus("Sending payload");
+                    string selectedFw = fwCombo.Text.ToString();
+                    var payloadpath = Directory.GetCurrentDirectory() + @"\payloads\" + selectedFw + @"\ps4debug.bin";
+                    Properties.Settings.Default.defaultPayload = selectedFw;
+                    Properties.Settings.Default.Save();
+                    if (File.Exists(payloadpath))
                     {
-                        socket.Send(buffer, buffer.Length, SocketFlags.None);
-                    }
+                        int ps4port = 9020;
+                        if (selectedFw == "6.72")
+                        {
+                            ps4port = 9021;
+                        }
+                        using (FileStream stream = File.OpenRead(payloadpath))
+                        {
+                            var buffer = new byte[stream.Length];
+                            stream.Read(buffer, 0, buffer.Length);
+                            var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                            IAsyncResult result = socket.BeginConnect(new IPEndPoint(IPAddress.Parse(ipTextBox.Text), ps4port), null, null);
+                            var connected = result.AsyncWaitHandle.WaitOne(3000);
+                            if (connected)
+                            {
+                               socket.Send(buffer, buffer.Length, SocketFlags.None);
+                            }
 
-                    SetStatus(connected ? "Payload sent" : "Failed to connect");
-                    socket.Close();
+                            SetStatus(connected ? "Payload sent. Press 'Connect'." : "Failed to connect.");
+                            socket.Close();
+                        }                       
+                    }
+                    else
+                    {
+                        SetStatus("Payload is missing from payload directory.");
+                    }
+                   
                 }
             }
             catch
             {
-                SetStatus("Sending payload failed");
+                SetStatus("Sending payload failed.");
             }
         }
 
@@ -650,12 +713,12 @@ namespace PS4Saves
         {
             if (!ps4.IsConnected)
             {
-                SetStatus("Not connected to ps4");
+                SetStatus("Not connected to PS4.");
                 return;
             }
             if (pid == 0)
             {
-                SetStatus("Don't forget to press setup");
+                SetStatus("Press 'Setup' first to get PS4 Users.");
                 return;
             }
             var pm = ps4.GetProcessMaps(pid);
@@ -666,11 +729,31 @@ namespace PS4Saves
             }
             var dirs = GetSaveDirectories();
             gamesComboBox.DataSource = dirs;
+            SetStatus(gamesComboBox.Items.Count+" games found. Select a game and press 'Search' to scan for available saves.");
         }
 
         private void gamesComboBox_SelectedIndexChanged(object sender, EventArgs e)
         {
             selectedGame = (string)gamesComboBox.SelectedItem;
+        }
+
+        private void OnApplicationExit(object sender, EventArgs e)
+        {
+            if (!ps4.IsConnected)
+            {
+                return;
+            }
+            if (mp == "")
+            {
+                return;
+            }
+            SceSaveDataMountPoint mountPoint = new SceSaveDataMountPoint
+            {
+                data = mp,
+            };
+
+            Unmount(mountPoint);
+            mp = null;
         }
     }
 }
