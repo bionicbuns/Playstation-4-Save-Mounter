@@ -1,13 +1,14 @@
 ﻿using libdebug;
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
+using HtmlAgilityPack;
 
 namespace PS4Saves
 {
@@ -23,13 +24,14 @@ namespace PS4Saves
         private ulong GetSaveDirectoriesAddr = 0;
         private ulong GetUsersAddr = 0;
         private int user = 0x0;
-        private string selectedGame = null;
+        private string selectedGame = null;        
         string mp = "";
         bool log = false;
         
         public Main()
         {
             InitializeComponent();
+            titleCheckbox.Checked = Properties.Settings.Default.GetTitles;
             Application.ApplicationExit += new EventHandler(this.OnApplicationExit);
             if (Directory.Exists(Directory.GetCurrentDirectory() + @"\payloads"))
             {
@@ -276,7 +278,6 @@ namespace PS4Saves
 
         private void searchButton_Click(object sender, EventArgs e)
         {
-
             if (!ps4.IsConnected)
             {
                 SetStatus("Not connected to PS4.");
@@ -342,6 +343,15 @@ namespace PS4Saves
                 SetStatus("No game selected.");
                 return;
             }
+            if (mp != "")
+            {
+                SceSaveDataMountPoint mountPoint = new SceSaveDataMountPoint
+                {
+                    data = mp,
+                };
+                Unmount(mountPoint);
+                mp = null;
+            }
             var dirNameAddr = ps4.AllocateMemory(pid, Marshal.SizeOf(typeof(SceSaveDataDirName)) + 0x10 + 0x41);
             var titleIdAddr = dirNameAddr + (uint)Marshal.SizeOf(typeof(SceSaveDataDirName));
             var fingerprintAddr = titleIdAddr + 0x10;
@@ -351,7 +361,6 @@ namespace PS4Saves
             {
                 data = dirsComboBox.Text
             };
-
             SceSaveDataMount mount = new SceSaveDataMount
             {
                 userId = GetUser(),
@@ -360,7 +369,6 @@ namespace PS4Saves
                 mountMode = 0x8 | 0x2,
                 titleId = titleIdAddr,
                 fingerprint = fingerprintAddr
-
             };
             SceSaveDataMountResult mountResult = new SceSaveDataMountResult
             {
@@ -368,11 +376,10 @@ namespace PS4Saves
             };
             ps4.WriteMemory(pid, dirNameAddr, dirName);
             mp = Mount(mount, mountResult);
-
             ps4.FreeMemory(pid, dirNameAddr, Marshal.SizeOf(typeof(SceSaveDataDirName)) + 0x10 + 0x41);
             if (mp != "")
             {
-                SetStatus($"Save Mounted in {mp}.");
+                SetStatus($"Save Mounted under /mnt/pfs/");
             }
             else
             {
@@ -396,7 +403,6 @@ namespace PS4Saves
             {
                 data = mp,
             };
-
             Unmount(mountPoint);
             mp = null;
             SetStatus("Save Unmounted.");
@@ -430,7 +436,6 @@ namespace PS4Saves
                 SetStatus("RPC Stub Not Found");
                 return;
             }
-
             var dirNameAddr = ps4.AllocateMemory(pid, Marshal.SizeOf(typeof(SceSaveDataDirName)) + 0x10 + 0x41);
             var titleIdAddr = dirNameAddr + (uint)Marshal.SizeOf(typeof(SceSaveDataDirName));
             var fingerprintAddr = titleIdAddr + 0x10;
@@ -727,14 +732,31 @@ namespace PS4Saves
                 SetStatus("RPC Stub Not Found");
                 return;
             }
+            SetStatus("Looking for games...");
             var dirs = GetSaveDirectories();
-            gamesComboBox.DataSource = dirs;
-            SetStatus(gamesComboBox.Items.Count+" games found. Select a game and press 'Search' to scan for available saves.");
+            if (titleCheckbox.Checked)
+            {
+                var fulltitles = new List<string>();
+                Parallel.For(0, dirs.Length, i =>
+                {
+                    var webaddress = "https://orbispatches.com/" + dirs[i];
+                    HtmlWeb web = new HtmlWeb();
+                    HtmlAgilityPack.HtmlDocument doc = web.Load(webaddress);
+                    var webtitle = doc.DocumentNode.SelectSingleNode("html/head/title").InnerText;
+                    fulltitles.Add(webtitle);
+                });
+                gamesComboBox.DataSource = fulltitles;
+            }
+            else
+            {
+                gamesComboBox.DataSource = dirs;
+            }
+            SetStatus(gamesComboBox.Items.Count + " games found. Select a game and press 'Search' to scan for available saves.");
         }
 
         private void gamesComboBox_SelectedIndexChanged(object sender, EventArgs e)
         {
-            selectedGame = (string)gamesComboBox.SelectedItem;
+            selectedGame = gamesComboBox.GetItemText(gamesComboBox.SelectedItem).Substring(0, 9);
         }
 
         private void OnApplicationExit(object sender, EventArgs e)
@@ -754,6 +776,24 @@ namespace PS4Saves
 
             Unmount(mountPoint);
             mp = null;
+        }
+
+        private void titleCheckbox_CheckedChanged(object sender, EventArgs e)
+        {
+            Properties.Settings.Default.GetTitles = titleCheckbox.Checked;
+            Properties.Settings.Default.Save();
+        }
+
+        private void GetTitlesLabel_Click(object sender, EventArgs e)
+        {
+            if (titleCheckbox.Checked)
+            {
+                titleCheckbox.Checked = false;
+            }
+            else
+            {
+                titleCheckbox.Checked = true;
+            }
         }
     }
 }

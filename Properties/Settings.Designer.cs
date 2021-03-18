@@ -46,5 +46,17 @@ namespace PS4Saves.Properties {
                 this["defaultPayload"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool GetTitles {
+            get {
+                return ((bool)(this["GetTitles"]));
+            }
+            set {
+                this["GetTitles"] = value;
+            }
+        }
     }
 }

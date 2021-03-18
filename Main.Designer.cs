@@ -29,7 +29,6 @@
         private void InitializeComponent()
         {
             this.components = new System.ComponentModel.Container();
-            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Main));
             this.connectButton = new System.Windows.Forms.Button();
             this.setupButton = new System.Windows.Forms.Button();
             this.userComboBox = new System.Windows.Forms.ComboBox();
@@ -38,6 +37,8 @@
             this.mountButton = new System.Windows.Forms.Button();
             this.unmountButton = new System.Windows.Forms.Button();
             this.connectionGroupBox = new System.Windows.Forms.GroupBox();
+            this.GetTitlesLabel = new System.Windows.Forms.Label();
+            this.titleCheckbox = new System.Windows.Forms.CheckBox();
             this.fwCombo = new System.Windows.Forms.ComboBox();
             this.getGamesButton = new System.Windows.Forms.Button();
             this.gamesComboBox = new System.Windows.Forms.ComboBox();
@@ -141,6 +142,8 @@
             // 
             // connectionGroupBox
             // 
+            this.connectionGroupBox.Controls.Add(this.GetTitlesLabel);
+            this.connectionGroupBox.Controls.Add(this.titleCheckbox);
             this.connectionGroupBox.Controls.Add(this.fwCombo);
             this.connectionGroupBox.Controls.Add(this.getGamesButton);
             this.connectionGroupBox.Controls.Add(this.gamesComboBox);
@@ -157,6 +160,26 @@
             this.connectionGroupBox.TabStop = false;
             this.connectionGroupBox.Text = "Connection";
             // 
+            // GetTitlesLabel
+            // 
+            this.GetTitlesLabel.Location = new System.Drawing.Point(119, 72);
+            this.GetTitlesLabel.Name = "GetTitlesLabel";
+            this.GetTitlesLabel.Size = new System.Drawing.Size(67, 29);
+            this.GetTitlesLabel.TabIndex = 9;
+            this.GetTitlesLabel.Text = "With Titles (online only)";
+            this.GetTitlesLabel.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            this.GetTitlesLabel.Click += new System.EventHandler(this.GetTitlesLabel_Click);
+            // 
+            // titleCheckbox
+            // 
+            this.titleCheckbox.AutoSize = true;
+            this.titleCheckbox.Location = new System.Drawing.Point(103, 76);
+            this.titleCheckbox.Name = "titleCheckbox";
+            this.titleCheckbox.Size = new System.Drawing.Size(15, 14);
+            this.titleCheckbox.TabIndex = 8;
+            this.titleCheckbox.UseVisualStyleBackColor = true;
+            this.titleCheckbox.CheckedChanged += new System.EventHandler(this.titleCheckbox_CheckedChanged);
+            // 
             // fwCombo
             // 
             this.fwCombo.DataBindings.Add(new System.Windows.Forms.Binding("Text", global::PS4Saves.Properties.Settings.Default, "defaultPayload", true, System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged));
@@ -171,7 +194,7 @@
             // 
             this.getGamesButton.Location = new System.Drawing.Point(6, 72);
             this.getGamesButton.Name = "getGamesButton";
-            this.getGamesButton.Size = new System.Drawing.Size(181, 21);
+            this.getGamesButton.Size = new System.Drawing.Size(89, 21);
             this.getGamesButton.TabIndex = 5;
             this.getGamesButton.Text = "Get Games";
             this.getGamesButton.UseVisualStyleBackColor = true;
@@ -397,10 +420,9 @@
             this.Controls.Add(this.createGroupBox);
             this.Controls.Add(this.connectionGroupBox);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
-            this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MaximizeBox = false;
             this.Name = "Main";
-            this.Text = "Playstation 4 Save Mounter 1.8";
+            this.Text = "Playstation 4 Save Mounter 1.8.1";
             this.connectionGroupBox.ResumeLayout(false);
             this.connectionGroupBox.PerformLayout();
             this.createGroupBox.ResumeLayout(false);
@@ -448,6 +470,8 @@
         private System.Windows.Forms.Button getGamesButton;
         private System.Windows.Forms.ComboBox gamesComboBox;
         private System.Windows.Forms.ComboBox fwCombo;
+        private System.Windows.Forms.Label GetTitlesLabel;
+        private System.Windows.Forms.CheckBox titleCheckbox;
     }
 }
 
